@@ -16,9 +16,10 @@ class worm:
         for _ in range(param_num):
             self.feel.append(BB.InputNode())
         self.effect = 0
+        self.brain_generator(1)
+
+    def brain_generator(self, degree):
         self.brain.neurons.append(BB.Neuron('Tanh', bias=2*random.random()-1))
-        for i in range(param_num):
-            self.brain.neurons[0].synapses.append(BB.Synapse(self.feel[i], weight=2*random.random()-1))
 
     def work(self):
         observation = env.reset()
