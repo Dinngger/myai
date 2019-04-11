@@ -4,11 +4,17 @@ import math
 # decay should be in [0, 1]
 # the larger decay is, the faster the decay are.
 
-types = {'Step': 0, 'Linear': 1, 'Sigmoid': 2}
+types = {'Step': 0, 'Linear': 1, 'Sigmoid': 2, 'Tanh': 3}
 
 
 def sigmoid(x):
     return 1 / (1 + math.exp(-x))
+
+
+def tanh(x):
+    expx = math.exp(x)
+    exp_x = math.exp(-x)
+    return (expx - exp_x) / (expx + exp_x)
 
 
 def safe_param(x):
@@ -104,5 +110,7 @@ class Neuron:
                 self.value = 0
         elif self.__type == types['Linear']:
             self.value = s_sum
-        else:
+        elif self.__type == types['Sigmoid']:
             self.value = sigmoid(s_sum)
+        else:
+            self.value = tanh(s_sum)

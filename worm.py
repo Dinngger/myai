@@ -2,7 +2,7 @@
 import BugBrain as BB
 import random
 import gym
-env = gym.make("CartPole-v1")
+env = gym.make("Pendulum-v0")
 observation = env.reset()
 param_num = len(observation)
 rend = False
@@ -16,24 +16,24 @@ class worm:
         for _ in range(param_num):
             self.feel.append(BB.InputNode())
         self.effect = 0
-        self.brain.neurons.append(BB.Neuron('Step', bias=2*random.random()-1))
+        self.brain.neurons.append(BB.Neuron('Tanh', bias=2*random.random()-1))
         for i in range(param_num):
             self.brain.neurons[0].synapses.append(BB.Synapse(self.feel[i], weight=2*random.random()-1))
 
     def work(self):
         observation = env.reset()
         effect = 0
-        for t in range(200):
+        for t in range(300):
             if rend:
                 env.render()
             for i in range(param_num):
                 self.feel[i].value = observation[i]
             self.brain.work()
-            action = self.brain.neurons[0].value
+            action = [self.brain.neurons[0].value]
             observation, reward, done, info = env.step(action)
             effect += reward
             if done:
-                self.effect = 1.0 / (t + 1)
+                self.effect = t / effect
                 break
 
 
@@ -73,8 +73,8 @@ if __name__ == "__main__":
     teacher = Teacher(max_num=32, keep_num=8)
     teacher.work()
     teacher.show()
-    for i in range(10):
-        if i > 8:
+    for i in range(50):
+        if i >= 49:
             rend = True
         teacher.generate()
         teacher.work()
