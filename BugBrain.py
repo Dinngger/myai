@@ -58,12 +58,12 @@ class Brain:
             for synapse in neuron.synapses:
                 G.add_edge(synapse.neu.sid, neuron.sid)
                 edge_colors.append((synapse.value + 1) / 2)
-        nx.draw_planar(G, with_labels=True,
-                       node_color=node_colors,
-                       edge_color=edge_colors,
-                       cmap=plt.get_cmap('cool'),
-                       edge_cmap=plt.get_cmap('cool'))
-        plt.pause(0.01)
+        nx.draw_shell(G, with_labels=True,
+                      node_color=node_colors,
+                      edge_color=edge_colors,
+                      cmap=plt.get_cmap('cool'),
+                      edge_cmap=plt.get_cmap('cool'))
+        plt.pause(0.1)
 
     def parameter(self):
         param = []

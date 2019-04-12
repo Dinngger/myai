@@ -13,14 +13,14 @@ GAUSSIAN_RATE = 4
 
 
 def gaussian(x):
-    return math.exp(-x*x) * 0.6
+    return math.exp(-x*x/4) * 0.6
 
 
 class worm:
     def __init__(self, number):
         self.number = number
         self.brain = BB.Brain()
-        self.degree = 3
+        self.degree = 4
         self.feel = []
         for i in range(param_num):
             self.feel.append(BB.InputNode(sid='i{}'.format(i)))
@@ -59,6 +59,7 @@ class worm:
         j = random.randint(0, param_num + self.degree)
         for synapse in self.brain.neurons[i].synapses:
             if synapse.sid == j:
+                self.brain.neurons[i].synapses.remove(synapse)
                 break
             elif synapse.sid > j:
                 if j < param_num:
@@ -88,7 +89,7 @@ class worm:
                 self.brain.work()
                 if rend and single_rend and not t % 100:
                     self.brain.draw(self.feel, self.reward)
-                action = [self.brain.neurons[0].value]
+                action = [self.brain.neurons[0].value * 3]
                 observation, reward, done, info = env.step(action)
                 single_effect -= reward
                 if done:
@@ -123,17 +124,17 @@ class Teacher:
     def work(self):
         global single_rend
         for i in range(self.max_num):
-            single_rend = i < self.keep_num
+            single_rend = i < 1  # self.keep_num
             self.worms[i].work()
         self.worms.sort(key=lambda x: x.effect, reverse=False)
 
 
 if __name__ == "__main__":
-    teacher = Teacher(max_num=32, keep_num=8)
+    teacher = Teacher(max_num=64, keep_num=16)
     teacher.work()
     teacher.show()
-    for i in range(50):
-        if i >= 2:
+    for i in range(100):
+        if i >= 10:
             rend = True
         teacher.generate()
         teacher.work()
