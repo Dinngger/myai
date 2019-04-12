@@ -7,25 +7,26 @@ import gym
 env = gym.make("Pendulum-v0")
 observation = env.reset()
 param_num = len(observation)
-rend = True
+rend = False
 single_rend = False
 GAUSSIAN_RATE = 4
 
 
 def gaussian(x):
-    return math.exp(-x*x) / 2
+    return math.exp(-x*x) * 0.6
 
 
 class worm:
     def __init__(self, number):
         self.number = number
         self.brain = BB.Brain()
+        self.degree = 3
         self.feel = []
         for i in range(param_num):
             self.feel.append(BB.InputNode(sid='i{}'.format(i)))
         self.reward = BB.InputNode(sid='r')
         self.effect = 0
-        self.brain_generator(3)
+        self.brain_generator(self.degree)
 
     def brain_generator(self, degree):
         for i in range(degree):
@@ -47,6 +48,32 @@ class worm:
                 synapse.decay = pow(random.random(), 4)
             self.brain.neurons[i].synapses.sort(key=lambda x: x.sid)
 
+    def mutation(self):
+        param = self.brain.parameter()
+        new_param = list(param)
+        for j in range(len(param)):
+            if random.random() >= 0.9:
+                new_param[j] = param[j] + random.random() - 0.5
+        self.brain.updateParam(new_param)
+        i = random.randint(0, self.degree-1)
+        j = random.randint(0, param_num + self.degree)
+        for synapse in self.brain.neurons[i].synapses:
+            if synapse.sid == j:
+                break
+            elif synapse.sid > j:
+                if j < param_num:
+                    neu = self.feel[j]
+                elif j == param_num:
+                    neu = self.reward
+                else:
+                    neu = self.brain.neurons[j - param_num - 1]
+                self.brain.neurons[i].synapses.append(BB.Synapse(neu,
+                                                                 sid=j,
+                                                                 weight=2*random.random()-1,
+                                                                 decay=pow(random.random(), 4)))
+                self.brain.neurons[i].synapses.sort(key=lambda x: x.sid)
+                break
+
     def work(self):
         effect = 0
         work_times = 3
@@ -59,7 +86,7 @@ class worm:
                 for i in range(param_num):
                     self.feel[i].value = observation[i]
                 self.brain.work()
-                if rend and single_rend and not t % 20:
+                if rend and single_rend and not t % 100:
                     self.brain.draw(self.feel, self.reward)
                 action = [self.brain.neurons[0].value]
                 observation, reward, done, info = env.step(action)
@@ -91,12 +118,7 @@ class Teacher:
         self.generation += 1
         for i in range(self.keep_num, self.max_num):
             self.worms[i] = copy.deepcopy(self.worms[i % self.keep_num])
-            param = self.worms[i].brain.parameter()
-            new_param = list(param)
-            for j in range(len(param)):
-                if random.random() >= 0.9:
-                    new_param[j] = param[j] + random.random() - 0.5
-            self.worms[i].brain.updateParam(new_param)
+            self.worms[i].mutation()
 
     def work(self):
         global single_rend
@@ -111,7 +133,7 @@ if __name__ == "__main__":
     teacher.work()
     teacher.show()
     for i in range(50):
-        if i >= 1:
+        if i >= 2:
             rend = True
         teacher.generate()
         teacher.work()

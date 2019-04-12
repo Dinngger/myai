@@ -63,7 +63,7 @@ class Brain:
                        edge_color=edge_colors,
                        cmap=plt.get_cmap('cool'),
                        edge_cmap=plt.get_cmap('cool'))
-        plt.pause(0.001)
+        plt.pause(0.01)
 
     def parameter(self):
         param = []
