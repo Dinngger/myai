@@ -1,11 +1,19 @@
 #!usr/bin/python
 import BugBrain as BB
 import random
+import math
+import copy
 import gym
 env = gym.make("Pendulum-v0")
 observation = env.reset()
 param_num = len(observation)
 rend = False
+single_rend = False
+GAUSSIAN_RATE = 4
+
+
+def gaussian(x):
+    return math.exp(-x*x) / 2
 
 
 class worm:
@@ -15,27 +23,49 @@ class worm:
         self.feel = []
         for _ in range(param_num):
             self.feel.append(BB.InputNode())
+        self.reward = BB.InputNode()
         self.effect = 0
-        self.brain_generator(1)
+        self.brain_generator(3)
 
     def brain_generator(self, degree):
-        self.brain.neurons.append(BB.Neuron('Tanh', bias=2*random.random()-1))
+        for _ in range(degree):
+            self.brain.neurons.append(BB.Neuron('Tanh', bias=2*random.random()-1))
+        for i in range(degree):
+            for j in range(degree // 2):
+                if random.random() <= gaussian(j - i - 2):
+                    self.brain.neurons[i].synapses.append(BB.Synapse(self.brain.neurons[j], sid=j+param_num+1))
+            if random.random() <= gaussian(degree // 2 - i - 2):
+                self.brain.neurons[i].synapses.append(BB.Synapse(self.reward, sid=param_num))
+            for j in range(degree // 2, degree):
+                if random.random() <= gaussian((j - i - 1) / GAUSSIAN_RATE):
+                    self.brain.neurons[i].synapses.append(BB.Synapse(self.brain.neurons[j], sid=j+param_num+1))
+            for j in range(param_num):
+                if random.random() <= gaussian((j + degree - i - 1) / GAUSSIAN_RATE):
+                    self.brain.neurons[i].synapses.append(BB.Synapse(self.feel[j], sid=j))
+            for synapse in self.brain.neurons[i].synapses:
+                synapse.weight = 2*random.random()-1
+                synapse.decay = pow(random.random(), 4)
+            self.brain.neurons[i].synapses.sort(key=lambda x: x.sid)
 
     def work(self):
-        observation = env.reset()
         effect = 0
-        for t in range(300):
-            if rend:
-                env.render()
-            for i in range(param_num):
-                self.feel[i].value = observation[i]
-            self.brain.work()
-            action = [self.brain.neurons[0].value]
-            observation, reward, done, info = env.step(action)
-            effect += reward
-            if done:
-                self.effect = t / effect
-                break
+        work_times = 3
+        for _ in range(work_times):
+            single_effect = 0
+            observation = env.reset()
+            for t in range(300):
+                if rend and single_rend:
+                    env.render()
+                for i in range(param_num):
+                    self.feel[i].value = observation[i]
+                self.brain.work()
+                action = [self.brain.neurons[0].value]
+                observation, reward, done, info = env.step(action)
+                single_effect -= reward
+                if done:
+                    effect += single_effect / (t + 1)
+                    break
+        self.effect = effect / work_times
 
 
 class Teacher:
@@ -58,14 +88,18 @@ class Teacher:
     def generate(self):
         self.generation += 1
         for i in range(self.keep_num, self.max_num):
-            param = self.worms[i % self.keep_num].brain.parameter()
+            self.worms[i] = copy.deepcopy(self.worms[i % self.keep_num])
+            param = self.worms[i].brain.parameter()
             new_param = list(param)
             for j in range(len(param)):
-                new_param[j] = param[j] + random.random() - 0.5
+                if random.random() >= 0.9:
+                    new_param[j] = param[j] + random.random() - 0.5
             self.worms[i].brain.updateParam(new_param)
 
     def work(self):
+        global single_rend
         for i in range(self.max_num):
+            single_rend = i < self.keep_num
             self.worms[i].work()
         self.worms.sort(key=lambda x: x.effect, reverse=False)
 
@@ -75,7 +109,7 @@ if __name__ == "__main__":
     teacher.work()
     teacher.show()
     for i in range(50):
-        if i >= 49:
+        if i >= 1:
             rend = True
         teacher.generate()
         teacher.work()

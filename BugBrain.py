@@ -17,6 +17,15 @@ def tanh(x):
     return (expx - exp_x) / (expx + exp_x)
 
 
+def learn_rate(x):
+    x = abs(x)
+    if x > 1:
+        x = 1
+    x = (x - 0.5) / 4
+    # input 0 will return 0.998, after 1000 times the weight will be about 0.1
+    return pow(tanh(x), 3) + 1
+
+
 def safe_param(x):
     return 1 if x > 1 else (-1 if x < -1 else x)
 
@@ -35,6 +44,7 @@ class Brain:
             param.append(neuron.bias)
             for synapse in neuron.synapses:
                 param.append(synapse.weight)
+                param.append(synapse.decay)
         return param
 
     def updateParam(self, param):
@@ -45,11 +55,14 @@ class Brain:
             for k in range(len(self.neurons[j].synapses)):
                 self.neurons[j].synapses[k].weight = safe_param(param[i])
                 i += 1
+                self.neurons[j].synapses[k].decay = safe_param(param[i])
+                i += 1
 
 
 class Synapse:
-    def __init__(self, neu, weight=1.0, decay=0):
+    def __init__(self, neu, sid=0, weight=1.0, decay=0):
         self.neu = neu
+        self.sid = sid
         self.weight = weight
         self.decay = decay
         self.learn = False
@@ -59,6 +72,7 @@ class Synapse:
 
     def value(self):
         val_w = self.neu.value * self.weight
+        self.weight = safe_param(self.weight * learn_rate(val_w))
         if self.decay == 0:
             return val_w
         else:
@@ -114,3 +128,6 @@ class Neuron:
             self.value = sigmoid(s_sum)
         else:
             self.value = tanh(s_sum)
+        for synapse in self.synapses:
+            if synapse.weight == 0:
+                self.synapses.remove(synapse)
