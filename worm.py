@@ -7,7 +7,7 @@ import gym
 env = gym.make("Pendulum-v0")
 observation = env.reset()
 param_num = len(observation)
-rend = False
+rend = True
 single_rend = False
 GAUSSIAN_RATE = 4
 
@@ -21,15 +21,15 @@ class worm:
         self.number = number
         self.brain = BB.Brain()
         self.feel = []
-        for _ in range(param_num):
-            self.feel.append(BB.InputNode())
-        self.reward = BB.InputNode()
+        for i in range(param_num):
+            self.feel.append(BB.InputNode(sid='i{}'.format(i)))
+        self.reward = BB.InputNode(sid='r')
         self.effect = 0
         self.brain_generator(3)
 
     def brain_generator(self, degree):
-        for _ in range(degree):
-            self.brain.neurons.append(BB.Neuron('Tanh', bias=2*random.random()-1))
+        for i in range(degree):
+            self.brain.neurons.append(BB.Neuron('Tanh', sid=i, bias=2*random.random()-1))
         for i in range(degree):
             for j in range(degree // 2):
                 if random.random() <= gaussian(j - i - 2):
@@ -59,6 +59,8 @@ class worm:
                 for i in range(param_num):
                     self.feel[i].value = observation[i]
                 self.brain.work()
+                if rend and single_rend and not t % 20:
+                    self.brain.draw(self.feel, self.reward)
                 action = [self.brain.neurons[0].value]
                 observation, reward, done, info = env.step(action)
                 single_effect -= reward

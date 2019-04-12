@@ -1,9 +1,12 @@
 #!usr/bin/python
+import matplotlib.pyplot as plt
+import networkx as nx
 import math
 # bias and weight should be in [-1, 1]
 # decay should be in [0, 1]
 # the larger decay is, the faster the decay are.
-
+G = nx.DiGraph()
+plt.ion()
 types = {'Step': 0, 'Linear': 1, 'Sigmoid': 2, 'Tanh': 3}
 
 
@@ -38,6 +41,30 @@ class Brain:
         for neuron in self.neurons:
             neuron.count()
 
+    def draw(self, inputNodes, reward):
+        G.clear()
+        plt.clf()
+        node_colors = []
+        edge_colors = []
+        for neuron in self.neurons:
+            G.add_node(neuron.sid)
+            node_colors.append((neuron.value + 1) / 2)
+        for in_node in inputNodes:
+            G.add_node(in_node.sid)
+            node_colors.append((in_node.value + 1) / 2)
+        G.add_node(reward.sid)
+        node_colors.append((reward.value + 1) / 2)
+        for neuron in self.neurons:
+            for synapse in neuron.synapses:
+                G.add_edge(synapse.neu.sid, neuron.sid)
+                edge_colors.append((synapse.value + 1) / 2)
+        nx.draw_planar(G, with_labels=True,
+                       node_color=node_colors,
+                       edge_color=edge_colors,
+                       cmap=plt.get_cmap('cool'),
+                       edge_cmap=plt.get_cmap('cool'))
+        plt.pause(0.001)
+
     def parameter(self):
         param = []
         for neuron in self.neurons:
@@ -68,45 +95,43 @@ class Synapse:
         self.learn = False
         self.active = False
         self.decayed = False
-        self.last = 0
+        self.value = 0
 
-    def value(self):
+    def count(self):
         val_w = self.neu.value * self.weight
         self.weight = safe_param(self.weight * learn_rate(val_w))
         if self.decay == 0:
-            return val_w
+            self.value = val_w
         else:
             if self.active:
-                self.last = self.last * self.decay
-                if math.fabs(self.last) > math.fabs(val_w):
-                    self.last = val_w
-                if math.fabs(self.last) <= 0.01:
+                self.value = self.value * self.decay
+                if math.fabs(self.value) > math.fabs(val_w):
+                    self.value = val_w
+                if math.fabs(self.value) <= 0.01:
                     self.active = False
                     self.decayed = True
-                    self.last = 0
-                return self.last
+                    self.value = 0
             else:
                 if math.fabs(val_w) >= 0.9:
                     if not self.decayed:
                         self.active = True
-                        self.last = val_w
-                        return self.last
-                    else:
-                        return self.last
+                        self.value = val_w
                 else:
                     self.decayed = False
-                    self.last = val_w
-                    return self.last
+                    self.value = val_w
+        return self.value
 
 
 class InputNode:
-    def __init__(self):
+    def __init__(self, sid=0):
+        self.sid = sid
         self.value = 0
 
 
 class Neuron:
-    def __init__(self, the_type, bias=0.5):
+    def __init__(self, the_type, sid=0, bias=0.5):
         self.__type = types[the_type]
+        self.sid = sid
         self.bias = bias
         self.synapses = []
         self.learn = False
@@ -115,7 +140,7 @@ class Neuron:
     def count(self):
         s_sum = 0
         for s in self.synapses:
-            s_sum += s.value()
+            s_sum += s.count()
         s_sum -= self.bias
         if self.__type == types['Step']:
             if s_sum >= 0:
