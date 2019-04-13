@@ -1,5 +1,6 @@
 #!usr/bin/python
 import BugBrain as BB
+import pickle
 import random
 import math
 import copy
@@ -17,16 +18,15 @@ def gaussian(x):
 
 
 class worm:
-    def __init__(self, number):
-        self.number = number
+    def __init__(self, sid, degree=6):
+        self.sid = sid
         self.brain = BB.Brain()
-        self.degree = 6
         self.feel = []
         for i in range(param_num):
             self.feel.append(BB.InputNode(sid='i{}'.format(i)))
         self.reward = BB.InputNode(sid='r')
         self.effect = 0
-        self.brain_generator(self.degree)
+        self.brain_generator(degree)
 
     def brain_generator(self, degree):
         for i in range(degree):
@@ -56,8 +56,9 @@ class worm:
                 new_param[j] = param[j] + (random.random() - 0.5) * self.effect * 0.2
         self.brain.updateParam(new_param)
         if random.random() > 0.95:
-            i = random.randint(0, self.degree-1)
-            j = random.randint(0, param_num + self.degree)
+            degree = len(self.brain.neurons)
+            i = random.randint(0, degree-1)
+            j = random.randint(0, param_num + degree)
             for synapse in self.brain.neurons[i].synapses:
                 if synapse.sid == j:
                     if random.random() > 0.5:
@@ -102,17 +103,27 @@ class worm:
 
 
 class Teacher:
-    def __init__(self, max_num, keep_num):
+    def __init__(self, max_num, keep_num, load=False):
         self.worms = []
         self.max_num = max_num
         self.keep_num = keep_num
         self.generation = 0
+        if load:
+            with open('./brains/brain_{}'.format(param_num), 'rb') as f:
+                load_worm = pickle.load(f)
         for i in range(self.max_num):
-            self.worms.append(worm(i))
+            if load:
+                self.worms.append(load_worm)
+            else:
+                self.worms.append(worm(i))
+        if load:
+            self.generate()
+            for i in range(self.max_num):
+                self.worms[i].sid = i
 
     def show(self):
         for i in range(self.keep_num):
-            print(round(self.worms[i].number, 5), end=' ')
+            print(round(self.worms[i].sid, 5), end=' ')
         print()
         for i in range(self.keep_num):
             print(round(self.worms[i].effect, 5), end=' ')
@@ -129,11 +140,14 @@ class Teacher:
         for i in range(self.max_num):
             single_rend = i < 1  # self.keep_num
             self.worms[i].work()
+            if i == 0:
+                with open('./brains/brain_{}'.format(param_num), 'wb') as f:
+                    pickle.dump(self.worms[i], f)
         self.worms.sort(key=lambda x: x.effect, reverse=False)
 
 
 if __name__ == "__main__":
-    teacher = Teacher(max_num=256, keep_num=128)
+    teacher = Teacher(max_num=256, keep_num=128, load=False)
     teacher.work()
     teacher.show()
     for i in range(200):

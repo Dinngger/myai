@@ -38,7 +38,7 @@ class Brain:
         self.neurons = []
 
     def work(self):
-        for neuron in self.neurons:
+        for neuron in reversed(self.neurons):
             neuron.count()
 
     def draw(self, inputNodes, reward):
