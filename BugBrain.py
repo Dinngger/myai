@@ -61,8 +61,8 @@ class Brain:
         nx.draw_shell(G, with_labels=True,
                       node_color=node_colors,
                       edge_color=edge_colors,
-                      cmap=plt.get_cmap('cool'),
-                      edge_cmap=plt.get_cmap('cool'))
+                      cmap=plt.get_cmap('coolwarm'),
+                      edge_cmap=plt.get_cmap('coolwarm'))
         plt.pause(0.1)
 
     def parameter(self):
@@ -99,7 +99,7 @@ class Synapse:
 
     def count(self):
         val_w = self.neu.value * self.weight
-        self.weight = safe_param(self.weight * learn_rate(val_w))
+        # self.weight = safe_param(self.weight * learn_rate(val_w))
         if self.decay == 0:
             self.value = val_w
         else:
