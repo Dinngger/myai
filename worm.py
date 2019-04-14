@@ -4,8 +4,9 @@ import pickle
 import random
 import math
 import copy
-import gym
-env = gym.make("Pendulum-v0")
+# import gym
+import my_env
+env = my_env.make("Remember")  # gym.make("Pong-ram-v0")
 observation = env.reset()
 param_num = len(observation)
 rend = False
@@ -14,11 +15,11 @@ GAUSSIAN_RATE = 4
 
 
 def gaussian(x):
-    return math.exp(-x*x/16) * 0.7
+    return math.exp(-x*x/16) * 0.9
 
 
 class worm:
-    def __init__(self, sid, degree=6):
+    def __init__(self, sid, degree=2):
         self.sid = sid
         self.brain = BB.Brain()
         self.feel = []
@@ -30,7 +31,7 @@ class worm:
 
     def brain_generator(self, degree):
         for i in range(degree):
-            self.brain.neurons.append(BB.Neuron('Tanh', sid=i, bias=2*random.random()-1))
+            self.brain.neurons.append(BB.Neuron('Step', sid=i, bias=2*random.random()-1))
         for i in range(degree):
             for j in range(degree // 2):
                 if random.random() <= gaussian(j - i - 2):
@@ -45,7 +46,7 @@ class worm:
                     self.brain.neurons[i].synapses.append(BB.Synapse(self.feel[j], sid=j))
             for synapse in self.brain.neurons[i].synapses:
                 synapse.weight = 2*random.random()-1
-                # synapse.decay = pow(random.random(), 4)
+                synapse.decay = random.random()
             self.brain.neurons[i].synapses.sort(key=lambda x: x.sid)
 
     def mutation(self):
@@ -53,9 +54,9 @@ class worm:
         new_param = list(param)
         for j in range(len(param)):
             if random.random() >= 0.65:
-                new_param[j] = param[j] + (random.random() - 0.5) * self.effect * 0.2
+                new_param[j] = param[j] + (random.random() - 0.5) * self.effect * 2
         self.brain.updateParam(new_param)
-        if random.random() > 0.95:
+        if random.random() > 0.9:
             degree = len(self.brain.neurons)
             i = random.randint(0, degree-1)
             j = random.randint(0, param_num + degree)
@@ -73,8 +74,8 @@ class worm:
                         neu = self.brain.neurons[j - param_num - 1]
                     self.brain.neurons[i].synapses.append(BB.Synapse(neu,
                                                                      sid=j,
-                                                                     weight=2*random.random()-1))
-                    #                                                  decay=pow(random.random(), 4)))
+                                                                     weight=2*random.random()-1,
+                                                                     decay=random.random()))
                     self.brain.neurons[i].synapses.sort(key=lambda x: x.sid)
                     break
 
@@ -84,21 +85,20 @@ class worm:
         for _ in range(work_times):
             single_effect = 0
             observation = env.reset()
-            for t in range(500):
-                if rend and single_rend:
-                    env.render()
+            for t in range(100):
                 for i in range(param_num):
                     self.feel[i].value = BB.tanh(observation[i])
                 self.brain.work()
-                if rend and single_rend and not t % 100:
+                if rend and single_rend and not t % 5:
+                    env.render()
                     self.brain.draw(self.feel, self.reward)
-                action = [self.brain.neurons[0].value * 3]
+                action = [self.brain.neurons[0].value]
                 observation, reward, done, info = env.step(action)
-                if t >= 400:
-                    single_effect -= reward
-                # if done:
-                #     break
-            effect += single_effect / 100
+                if t >= 0:
+                    single_effect += reward
+                if done:
+                    break
+            effect += single_effect / (t + 1)
         self.effect = effect / work_times
 
 
@@ -147,13 +147,13 @@ class Teacher:
 
 
 if __name__ == "__main__":
-    teacher = Teacher(max_num=256, keep_num=128, load=False)
+    teacher = Teacher(max_num=64, keep_num=32, load=False)
     teacher.work()
     teacher.show()
     for i in range(200):
-        if teacher.keep_num > 8 and not i % 4:
+        if teacher.keep_num > 32 and not i % 4:
             teacher.keep_num = teacher.keep_num // 2
-        if i >= 10:
+        if i >= 0:
             rend = True
         teacher.generate()
         teacher.work()

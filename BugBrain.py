@@ -4,9 +4,11 @@ import networkx as nx
 import math
 # bias and weight should be in [-1, 1]
 # decay should be in [0, 1]
-# the larger decay is, the faster the decay are.
+# the smaller decay is, the faster the decay are.
 G = nx.DiGraph()
 plt.ion()
+fig = plt.figure(1)
+ax = fig.add_subplot(1, 1, 1)
 types = {'Step': 0, 'Linear': 1, 'Sigmoid': 2, 'Tanh': 3}
 
 
@@ -43,7 +45,7 @@ class Brain:
 
     def draw(self, inputNodes, reward):
         G.clear()
-        plt.clf()
+        ax.cla()
         node_colors = []
         edge_colors = []
         for neuron in self.neurons:
@@ -58,12 +60,13 @@ class Brain:
             for synapse in neuron.synapses:
                 G.add_edge(synapse.neu.sid, neuron.sid)
                 edge_colors.append((synapse.value + 1) / 2)
-        nx.draw_shell(G, with_labels=True,
+        nx.draw_shell(G, ax=ax, with_labels=True,
                       node_color=node_colors,
                       edge_color=edge_colors,
                       cmap=plt.get_cmap('coolwarm'),
-                      edge_cmap=plt.get_cmap('coolwarm'))
-        plt.pause(0.1)
+                      edge_cmap=plt.get_cmap('coolwarm'),
+                      vmin=0, vmax=1)
+        plt.pause(0.0001)
 
     def parameter(self):
         param = []
@@ -100,11 +103,11 @@ class Synapse:
     def count(self):
         val_w = self.neu.value * self.weight
         # self.weight = safe_param(self.weight * learn_rate(val_w))
-        if self.decay == 0:
+        if self.decay == 0 or self.decay == 1:
             self.value = val_w
         else:
             if self.active:
-                self.value = self.value * self.decay
+                self.value = self.value * pow(self.decay, 0.2)
                 if math.fabs(self.value) > math.fabs(val_w):
                     self.value = val_w
                 if math.fabs(self.value) <= 0.01:
