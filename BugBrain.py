@@ -43,19 +43,24 @@ class Brain:
         for neuron in reversed(self.neurons):
             neuron.count()
 
-    def draw(self, inputNodes, reward):
+    def draw(self, inputNodes=None, rewards=None):
         G.clear()
         ax.cla()
         node_colors = []
         edge_colors = []
+        if inputNodes is None:
+            inputNodes = []
+        if rewards is None:
+            rewards = []
         for neuron in self.neurons:
             G.add_node(neuron.sid)
             node_colors.append((neuron.value + 1) / 2)
         for in_node in inputNodes:
             G.add_node(in_node.sid)
             node_colors.append((in_node.value + 1) / 2)
-        G.add_node(reward.sid)
-        node_colors.append((reward.value + 1) / 2)
+        for reward in rewards:
+            G.add_node(reward.sid)
+            node_colors.append((reward.value + 1) / 2)
         for neuron in self.neurons:
             for synapse in neuron.synapses:
                 G.add_edge(synapse.neu.sid, neuron.sid)

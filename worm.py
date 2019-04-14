@@ -6,7 +6,8 @@ import math
 import copy
 # import gym
 import my_env
-env = my_env.make("Remember")  # gym.make("Pong-ram-v0")
+env_name = 'Remember'
+env = my_env.make(env_name)  # gym.make("Pong-ram-v0")
 observation = env.reset()
 param_num = len(observation)
 rend = False
@@ -18,7 +19,7 @@ def gaussian(x):
     return math.exp(-x*x/16) * 0.9
 
 
-class worm:
+class Worm:
     def __init__(self, sid, degree=2):
         self.sid = sid
         self.brain = BB.Brain()
@@ -91,7 +92,7 @@ class worm:
                 self.brain.work()
                 if rend and single_rend and not t % 5:
                     env.render()
-                    self.brain.draw(self.feel, self.reward)
+                    self.brain.draw(self.feel, [self.reward])
                 action = [self.brain.neurons[0].value]
                 observation, reward, done, info = env.step(action)
                 if t >= 0:
@@ -109,13 +110,13 @@ class Teacher:
         self.keep_num = keep_num
         self.generation = 0
         if load:
-            with open('./brains/brain_{}'.format(param_num), 'rb') as f:
+            with open('./brains/{}'.format(env_name), 'rb') as f:
                 load_worm = pickle.load(f)
         for i in range(self.max_num):
             if load:
                 self.worms.append(load_worm)
             else:
-                self.worms.append(worm(i))
+                self.worms.append(Worm(i))
         if load:
             self.generate()
             for i in range(self.max_num):
@@ -141,7 +142,7 @@ class Teacher:
             single_rend = i < 1  # self.keep_num
             self.worms[i].work()
             if i == 0:
-                with open('./brains/brain_{}'.format(param_num), 'wb') as f:
+                with open('./brains/brain_{}'.format(env_name), 'wb') as f:
                     pickle.dump(self.worms[i], f)
         self.worms.sort(key=lambda x: x.effect, reverse=False)
 
