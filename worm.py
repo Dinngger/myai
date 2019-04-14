@@ -16,7 +16,7 @@ GAUSSIAN_RATE = 4
 
 
 def gaussian(x):
-    return math.exp(-x*x/16) * 0.9
+    return math.exp(-pow(x/param_num, 2)) * 0.9
 
 
 class Worm:
@@ -55,7 +55,7 @@ class Worm:
         new_param = list(param)
         for j in range(len(param)):
             if random.random() <= 0.65:
-                new_param[j] = param[j] + (random.random() - 0.5) * self.effect * 8
+                new_param[j] = param[j] + (random.random() - 0.5) * BB.tanh(self.effect * 5)
         self.brain.updateParam(new_param)
         if random.random() <= 0.1:
             degree = len(self.brain.neurons)
@@ -101,6 +101,7 @@ class Worm:
                 if done:
                     break
             effect += single_effect / (t + 1)
+        # self.effect shoule better be in about 1
         self.effect = effect / work_times
 
 
@@ -133,9 +134,16 @@ class Teacher:
 
     def generate(self):
         self.generation += 1
-        for i in range(self.max_num-1, -1, -1):
-            if self.worms[i].effect == 0.21 or self.worms[i].effect == 0.79:
-                self.worms.remove(self.worms[i])
+        self.biodiverse = True
+        first_effect = self.worms[0].effect
+        for i in range(self.keep_num):
+            if self.worms[i].effect != first_effect or first_effect < 0.05:
+                self.biodiverse = False
+                break
+        if self.biodiverse is True:
+            for i in range(self.max_num-1, -1, -1):
+                if self.worms[i].effect == first_effect:
+                    self.worms.remove(self.worms[i])
         stage = 1
         for j in range(stage):
             for i in range(self.max_num//stage*j + self.keep_num//stage, (j+1)*self.max_num//stage):
