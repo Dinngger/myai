@@ -55,7 +55,7 @@ class Worm:
         new_param = list(param)
         for j in range(len(param)):
             if random.random() <= 0.65:
-                new_param[j] = param[j] + (random.random() - 0.5) * self.effect * 2
+                new_param[j] = param[j] + (random.random() - 0.5) * self.effect * 8
         self.brain.updateParam(new_param)
         if random.random() <= 0.1:
             degree = len(self.brain.neurons)
@@ -124,25 +124,31 @@ class Teacher:
                 self.worms[i].sid = i
 
     def show(self):
-        for i in range(self.keep_num):
+        for i in range(self.max_num):
             print(round(self.worms[i].sid, 5), end=' ')
         print()
-        for i in range(self.keep_num):
+        for i in range(self.max_num):
             print(round(self.worms[i].effect, 5), end=' ')
         print()
 
     def generate(self):
         self.generation += 1
-        stage = 4
+        for i in range(self.max_num-1, -1, -1):
+            if self.worms[i].effect == 0.21 or self.worms[i].effect == 0.79:
+                self.worms.remove(self.worms[i])
+        stage = 1
         for j in range(stage):
             for i in range(self.max_num//stage*j + self.keep_num//stage, (j+1)*self.max_num//stage):
-                self.worms[i] = copy.deepcopy(self.worms[i % self.keep_num + j*self.max_num//stage])
+                if i >= len(self.worms):
+                    self.worms.append(copy.deepcopy(self.worms[i % self.keep_num + j*self.max_num//stage]))
+                else:
+                    self.worms[i] = copy.deepcopy(self.worms[i % self.keep_num + j*self.max_num//stage])
                 self.worms[i].mutation()
 
     def work(self):
         global single_rend
         for i in range(self.max_num):
-            single_rend = i % 28 == 0  # self.keep_num
+            single_rend = i == 0  # self.keep_num
             self.worms[i].work()
             if i == 0:
                 with open('./brains/brain_{}'.format(env_name), 'wb') as f:
@@ -151,13 +157,13 @@ class Teacher:
 
 
 if __name__ == "__main__":
-    teacher = Teacher(max_num=64, keep_num=16, load=False)
+    teacher = Teacher(max_num=512, keep_num=16, load=False)
     teacher.work()
     teacher.show()
     for i in range(200):
         if teacher.keep_num > 32 and not i % 4:
             teacher.keep_num = teacher.keep_num // 2
-        if i >= 190:
+        if i != 0 and not i % 100:
             rend = True
         teacher.generate()
         teacher.work()
