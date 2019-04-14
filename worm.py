@@ -20,7 +20,7 @@ def gaussian(x):
 
 
 class Worm:
-    def __init__(self, sid, degree=2):
+    def __init__(self, sid, degree=3):
         self.sid = sid
         self.brain = BB.Brain()
         self.feel = []
@@ -54,10 +54,10 @@ class Worm:
         param = self.brain.parameter()
         new_param = list(param)
         for j in range(len(param)):
-            if random.random() >= 0.65:
+            if random.random() <= 0.65:
                 new_param[j] = param[j] + (random.random() - 0.5) * self.effect * 2
         self.brain.updateParam(new_param)
-        if random.random() > 0.9:
+        if random.random() <= 0.1:
             degree = len(self.brain.neurons)
             i = random.randint(0, degree-1)
             j = random.randint(0, param_num + degree)
@@ -90,9 +90,10 @@ class Worm:
                 for i in range(param_num):
                     self.feel[i].value = BB.tanh(observation[i])
                 self.brain.work()
-                if rend and single_rend and not t % 5:
+                if rend and single_rend:
                     env.render()
-                    self.brain.draw(self.feel, [self.reward])
+                    if not t % 10:
+                        self.brain.draw(self.feel, [self.reward])
                 action = [self.brain.neurons[0].value]
                 observation, reward, done, info = env.step(action)
                 if t >= 0:
@@ -132,14 +133,16 @@ class Teacher:
 
     def generate(self):
         self.generation += 1
-        for i in range(self.keep_num, self.max_num):
-            self.worms[i] = copy.deepcopy(self.worms[i % self.keep_num])
-            self.worms[i].mutation()
+        stage = 4
+        for j in range(stage):
+            for i in range(self.max_num//stage*j + self.keep_num//stage, (j+1)*self.max_num//stage):
+                self.worms[i] = copy.deepcopy(self.worms[i % self.keep_num + j*self.max_num//stage])
+                self.worms[i].mutation()
 
     def work(self):
         global single_rend
         for i in range(self.max_num):
-            single_rend = i < 1  # self.keep_num
+            single_rend = i % 28 == 0  # self.keep_num
             self.worms[i].work()
             if i == 0:
                 with open('./brains/brain_{}'.format(env_name), 'wb') as f:
@@ -148,13 +151,13 @@ class Teacher:
 
 
 if __name__ == "__main__":
-    teacher = Teacher(max_num=64, keep_num=32, load=False)
+    teacher = Teacher(max_num=64, keep_num=16, load=False)
     teacher.work()
     teacher.show()
     for i in range(200):
         if teacher.keep_num > 32 and not i % 4:
             teacher.keep_num = teacher.keep_num // 2
-        if i >= 0:
+        if i >= 190:
             rend = True
         teacher.generate()
         teacher.work()

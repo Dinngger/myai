@@ -107,12 +107,13 @@ class Synapse:
 
     def count(self):
         val_w = self.neu.value * self.weight
+        self.decay = math.fabs(self.decay)
         # self.weight = safe_param(self.weight * learn_rate(val_w))
         if self.decay == 0 or self.decay == 1:
             self.value = val_w
         else:
             if self.active:
-                self.value = self.value * pow(self.decay, 0.2)
+                self.value = self.value * pow(self.decay, 0.3)
                 if math.fabs(self.value) > math.fabs(val_w):
                     self.value = val_w
                 if math.fabs(self.value) <= 0.01:
@@ -162,5 +163,5 @@ class Neuron:
         else:
             self.value = tanh(s_sum)
         for synapse in self.synapses:
-            if synapse.weight == 0:
+            if abs(synapse.weight) <= 0.01:
                 self.synapses.remove(synapse)
