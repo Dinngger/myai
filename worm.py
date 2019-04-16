@@ -22,11 +22,9 @@ def gaussian(x):
 class Worm:
     def __init__(self, sid, degree=3):
         self.sid = sid
-        self.brain = BB.Brain()
-        self.feel = []
+        self.brain = BB.Brain(param_num=param_num)
         for i in range(param_num):
-            self.feel.append(BB.InputNode(sid='i{}'.format(i)))
-        self.reward = BB.InputNode(sid='r')
+            self.brain.feel.append(BB.InputNode(sid='i{}'.format(i)))
         self.effect = 0
         self.brain_generator(degree)
 
@@ -38,71 +36,46 @@ class Worm:
                 if random.random() <= gaussian(j - i - 2):
                     self.brain.neurons[i].synapses.append(BB.Synapse(self.brain.neurons[j], sid=j+param_num+1))
             if random.random() <= gaussian(degree // 2 - i - 2):
-                self.brain.neurons[i].synapses.append(BB.Synapse(self.reward, sid=param_num))
+                self.brain.neurons[i].synapses.append(BB.Synapse(self.brain.reward, sid=param_num))
             for j in range(degree // 2, degree):
                 if random.random() <= gaussian((j - i - 1) / GAUSSIAN_RATE):
                     self.brain.neurons[i].synapses.append(BB.Synapse(self.brain.neurons[j], sid=j+param_num+1))
             for j in range(param_num):
                 if random.random() <= gaussian((j + degree - i - 1) / GAUSSIAN_RATE):
-                    self.brain.neurons[i].synapses.append(BB.Synapse(self.feel[j], sid=j))
+                    self.brain.neurons[i].synapses.append(BB.Synapse(self.brain.feel[j], sid=j))
             for synapse in self.brain.neurons[i].synapses:
                 synapse.weight = 2*random.random()-1
                 synapse.decay = random.random()
             self.brain.neurons[i].synapses.sort(key=lambda x: x.sid)
 
     def mutation(self):
-        param = self.brain.parameter()
-        new_param = list(param)
-        for j in range(len(param)):
-            if random.random() <= 0.65:
-                new_param[j] = param[j] + (random.random() - 0.5) * BB.tanh(self.effect * 5)
-        self.brain.updateParam(new_param)
-        if random.random() <= 0.1:
-            degree = len(self.brain.neurons)
-            i = random.randint(0, degree-1)
-            j = random.randint(0, param_num + degree)
-            for synapse in self.brain.neurons[i].synapses:
-                if synapse.sid == j:
-                    if random.random() > 0.5:
-                        self.brain.neurons[i].synapses.remove(synapse)
-                    break
-                elif synapse.sid > j:
-                    if j < param_num:
-                        neu = self.feel[j]
-                    elif j == param_num:
-                        neu = self.reward
-                    else:
-                        neu = self.brain.neurons[j - param_num - 1]
-                    self.brain.neurons[i].synapses.append(BB.Synapse(neu,
-                                                                     sid=j,
-                                                                     weight=2*random.random()-1,
-                                                                     decay=random.random()))
-                    self.brain.neurons[i].synapses.sort(key=lambda x: x.sid)
-                    break
+        self.brain.mutation(effect=self.effect)
 
     def work(self):
         effect = 0
-        work_times = 1
-        for _ in range(work_times):
-            single_effect = 0
+        work_times = 10
+        one_work_time = 100
+        for wt in range(work_times):
             observation = env.reset()
-            for t in range(100):
+            effect = 0
+            for t in range(one_work_time):
                 for i in range(param_num):
-                    self.feel[i].value = BB.tanh(observation[i])
+                    self.brain.feel[i].value = BB.tanh(observation[i])
                 self.brain.work()
                 if rend and single_rend:
                     env.render()
                     if not t % 10:
-                        self.brain.draw(self.feel, [self.reward])
+                        self.brain.draw()
                 action = [self.brain.neurons[0].value]
                 observation, reward, done, info = env.step(action)
+                self.brain.reward.value = reward
                 if t >= 0:
-                    single_effect += reward
+                    effect += reward
                 if done:
                     break
-            effect += single_effect / (t + 1)
-        # self.effect shoule better be in about 1
-        self.effect = effect / work_times
+            # self.effect shoule better be in about 1
+            self.effect = effect / one_work_time
+            self.brain.mutation(running=True, effect=self.effect)
 
 
 class Teacher:
