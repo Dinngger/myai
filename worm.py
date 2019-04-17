@@ -9,6 +9,7 @@ import my_env
 env_name = 'Remember'
 env = my_env.make(env_name)  # gym.make("Pong-ram-v0")
 observation = env.reset()
+env.step([0])
 param_num = len(observation)
 rend = False
 single_rend = False
@@ -30,7 +31,7 @@ class Worm:
 
     def brain_generator(self, degree):
         for i in range(degree):
-            self.brain.neurons.append(BB.Neuron('Step', sid=i, bias=2*random.random()-1))
+            self.brain.neurons.append(BB.Neuron('Relu', sid=i, bias=2*random.random()-1))
         for i in range(degree):
             for j in range(degree // 2):
                 if random.random() <= gaussian(j - i - 2):
@@ -52,30 +53,29 @@ class Worm:
         self.brain.mutation(effect=self.effect)
 
     def work(self):
-        effect = 0
         work_times = 10
         one_work_time = 100
-        for wt in range(work_times):
+        for _ in range(work_times):
             observation = env.reset()
             effect = 0
             for t in range(one_work_time):
                 for i in range(param_num):
                     self.brain.feel[i].value = BB.tanh(observation[i])
                 self.brain.work()
+                action = [self.brain.neurons[0].value]
+                observation, reward, done, info = env.step(action)
+                self.brain.reward.value = reward
                 if rend and single_rend:
                     env.render()
                     if not t % 10:
                         self.brain.draw()
-                action = [self.brain.neurons[0].value]
-                observation, reward, done, info = env.step(action)
-                self.brain.reward.value = reward
                 if t >= 0:
                     effect += reward
                 if done:
                     break
+                self.brain.mutation(running=True)
             # self.effect shoule better be in about 1
             self.effect = effect / one_work_time
-            self.brain.mutation(running=True, effect=self.effect)
 
 
 class Teacher:
@@ -98,22 +98,28 @@ class Teacher:
                 self.worms[i].sid = i
 
     def show(self):
+        '''
         for i in range(self.max_num):
             print(round(self.worms[i].sid, 5), end=' ')
         print()
+        '''
         for i in range(self.max_num):
             print(round(self.worms[i].effect, 5), end=' ')
         print()
 
     def generate(self):
         self.generation += 1
-        self.biodiverse = True
-        first_effect = self.worms[0].effect
+        self.biodiverse = 0
+        first_effect = 0
         for i in range(self.keep_num):
-            if self.worms[i].effect != first_effect or first_effect < 0.05:
-                self.biodiverse = False
-                break
-        if self.biodiverse is True:
+            if self.worms[i].effect != first_effect:
+                first_effect = self.worms[i].effect
+                self.biodiverse = 0
+            else:
+                self.biodiverse += 1
+                if self.biodiverse > self.keep_num / 2:
+                    break
+        if self.biodiverse > self.keep_num / 2:
             for i in range(self.max_num-1, -1, -1):
                 if self.worms[i].effect == first_effect:
                     self.worms.remove(self.worms[i])
@@ -138,7 +144,7 @@ class Teacher:
 
 
 if __name__ == "__main__":
-    teacher = Teacher(max_num=512, keep_num=16, load=False)
+    teacher = Teacher(max_num=64, keep_num=16, load=False)
     teacher.work()
     teacher.show()
     for i in range(200):
