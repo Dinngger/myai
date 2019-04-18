@@ -6,12 +6,12 @@ import math
 import copy
 # import gym
 import my_env
-env_name = 'Remember'
+env_name = 'And_or_Or'
 env = my_env.make(env_name)  # gym.make("Pong-ram-v0")
 observation = env.reset()
 env.step([0])
 param_num = len(observation)
-rend = False
+rend = True
 single_rend = False
 GAUSSIAN_RATE = 4
 
@@ -31,7 +31,7 @@ class Worm:
 
     def brain_generator(self, degree):
         for i in range(degree):
-            self.brain.neurons.append(BB.Neuron('Relu', sid=i, bias=2*random.random()-1))
+            self.brain.neurons.append(BB.Neuron('Step', sid=i, bias=2*random.random()-1))
         for i in range(degree):
             for j in range(degree // 2):
                 if random.random() <= gaussian(j - i - 2):
