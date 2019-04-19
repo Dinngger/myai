@@ -43,9 +43,11 @@ class Remember:
 class And_or_Or:
     def __init__(self):
         self.reset()
+        self.expect = 0
 
     def reset(self):
         self.time = 0
+        self.last_expect = 0
         self.X = []
         self.Y = []
         self.Y2 = []
@@ -54,7 +56,7 @@ class And_or_Or:
     def render(self):
         self.X.append(self.time)
         self.Y.append(self.action)
-        self.Y2.append(self.expect)
+        self.Y2.append(self.last_expect)
         line.set_xdata(self.X)
         line2.set_xdata(self.X)
         line.set_ydata(self.Y)
@@ -67,11 +69,12 @@ class And_or_Or:
         a = 1.0 * ((self.time // 4) % 2)
         b = 1.0 * ((self.time // 4) % 4 > 1)
         self.observation = [a, b]
+        self.last_expect = self.expect
         if self.time > 50:
             self.expect = 1.0 * (a and b)
         else:
             self.expect = 1.0 * (a or b)
-        reward = abs(action[0] - self.expect)
+        reward = abs(action[0] - self.last_expect)
         done = self.time > 100
         return self.observation, reward, done, {}
 
@@ -87,9 +90,14 @@ def make(env_name):
 
 
 if __name__ == "__main__":
-    env = make("Remember")
+    env = make("And_or_Or")
+    oba = 0
     for _ in range(5):
         env.reset()
+        sum_reward = 0
         for i in range(100):
-            env.step([0])
+            observation, reward, done, info = env.step([oba])
+            oba = observation[0]
+            sum_reward += reward
             env.render()
+        print(sum_reward / 100)

@@ -11,8 +11,7 @@ plt.ion()
 fig = plt.figure(1)
 ax = fig.add_subplot(1, 1, 1)
 types = {'Step': 0, 'Linear': 1, 'Sigmoid': 2, 'Tanh': 3, 'Relu': 4}
-ACTIVE_MIN = 0.9
-UNUSED_TIME_RATE = 200
+MAX_TIME = 500
 
 
 def sigmoid(x):
@@ -30,20 +29,42 @@ def safe_param(x):
 
 
 class Brain:
-    def __init__(self, param_num=0):
-        self.param_num = param_num
+    def __init__(self, input_dimension=0, output_dimension=0):
+        self.input_dimension = input_dimension
+        self.output_dimension = output_dimension
         self.neurons = []
         self.feel = []
-        self.reward = InputNode(sid='r')
+        self.effect = 10
+        self.not_update = 0
+        self.is_good = False
 
     def work(self):
         for neuron in reversed(self.neurons):
             neuron.count()
+        output = []
+        for i in range(self.output_dimension):
+            output.append(self.neurons[i].value)
+        return output
+
+    def update_effect(self, effect):
+        if effect <= self.effect or self.not_update >= 5:
+            self.not_update = 0
+            self.effect = effect
+            for neuron in self.neurons:
+                neuron.good_bias = neuron.bias
+                for synapse in neuron.synapses:
+                    synapse.good_weight = synapse.weight
+                    synapse.good_decay = synapse.decay
+        else:
+            self.not_update += 1
+
+    def show_good(self):
+        self.is_good = True
         for neuron in self.neurons:
-            if neuron.stable >= 0.9 and neuron.good <= 0.1:
-                neuron.bias = 2 * random.random() - 1
-                neuron.good = 1
-                neuron.stable = 0
+            neuron.bias = neuron.good_bias
+            for synapse in neuron.synapses:
+                synapse.weight = synapse.good_weight
+                synapse.decay = synapse.good_decay
 
     def draw(self):
         G.clear()
@@ -56,9 +77,6 @@ class Brain:
         for in_node in self.feel:
             G.add_node(in_node.sid)
             node_colors.append((in_node.value + 1) / 2)
-        for reward in [self.reward]:
-            G.add_node(reward.sid)
-            node_colors.append((reward.value + 1) / 2)
         for neuron in self.neurons:
             for synapse in neuron.synapses:
                 G.add_edge(synapse.neu.sid, neuron.sid)
@@ -71,35 +89,25 @@ class Brain:
                       vmin=0, vmax=1)
         plt.pause(0.0001)
 
-    def mutation(self, running=False, effect=1):
+    def mutation(self, running=False):
+        self.is_good = False
         if running:
-            mutation_rate = {'param': 0, 'struct': 0.05}
+            mutation_rate = {'param': 0.3, 'struct': 0}
         else:
-            mutation_rate = {'param': 0.65, 'struct': 0.1}
-        if not running:
-            param = []
-            for neuron in self.neurons:
-                param.append(neuron.bias)
-                for synapse in neuron.synapses:
-                    param.append(synapse.weight)
-                    param.append(synapse.decay)
-            new_param = list(param)
-            for j in range(len(param)):
+            mutation_rate = {'param': 0.5, 'struct': 0.5}
+        rate = tanh(self.effect * 5)
+        for neuron in self.neurons:
+            if random.random() <= mutation_rate['param']:
+                neuron.bias = safe_param(neuron.good_bias + (random.random() - 0.5) * rate)
+            for synapse in neuron.synapses:
                 if random.random() <= mutation_rate['param']:
-                    new_param[j] = param[j] + (random.random() - 0.5) * tanh(effect * 5)
-            i_param = 0
-            for j in range(len(self.neurons)):
-                self.neurons[j].bias = safe_param(new_param[i_param])
-                i_param += 1
-                for k in range(len(self.neurons[j].synapses)):
-                    self.neurons[j].synapses[k].weight = safe_param(new_param[i_param])
-                    i_param += 1
-                    self.neurons[j].synapses[k].decay = safe_param(new_param[i_param])
-                    i_param += 1
-        if random.random() <= mutation_rate['struct']:
+                    synapse.weight = safe_param(synapse.good_weight + (random.random() - 0.5) * rate)
+                if random.random() <= mutation_rate['param']:
+                    synapse.decay = safe_param(synapse.good_decay + (random.random() - 0.5) * rate)
+        if random.random() <= mutation_rate['struct'] and self.effect > 0:
             degree = len(self.neurons)
-            i = random.randint(0, degree-1)
-            j = random.randint(0, self.param_num + degree)
+            i = random.randint(0, degree - 1)
+            j = random.randint(0, self.input_dimension + degree - 1)
             exist = False
             for synapse in self.neurons[i].synapses:
                 if synapse.sid == j:
@@ -108,15 +116,13 @@ class Brain:
                 elif synapse.sid > j:
                     break
             if not exist:
-                if j < self.param_num:
+                if j < self.input_dimension:
                     neu = self.feel[j]
-                elif j == self.param_num:
-                    neu = self.reward
                 else:
-                    neu = self.neurons[j - self.param_num - 1]
+                    neu = self.neurons[j - self.input_dimension]
                 self.neurons[i].synapses.append(Synapse(neu,
                                                         sid=j,
-                                                        weight=2*random.random()-1,
+                                                        weight=0,
                                                         decay=random.random()))
                 self.neurons[i].synapses.sort(key=lambda x: x.sid)
 
@@ -127,34 +133,21 @@ class Synapse:
         self.sid = sid
         self.weight = weight
         self.decay = decay
+        self.good_weight = weight
+        self.good_decay = decay
         self.learn = learn
-        self.stable = 0
-        self.using_freq = 1
-        self.good = 1
+        self.live_time = 0
         self.active = False
         self.decayed = False
         self.value = 0
 
     def count(self):
         weighted_value = self.neu.value * self.weight
-        if math.fabs(weighted_value) >= ACTIVE_MIN:
-            self.using_freq = (self.using_freq * 8 + 1) / 9
-        else:
-            self.using_freq = self.using_freq * 8 / 9
-        self.good = (self.good * 8 + self.using_freq) / 9
-        if self.learn:
-            if random.random() <= (1 - self.good) * (1 - self.stable):
-                self.stable = (self.stable * 20 + 1) / 21
-                self.weight = safe_param(self.weight + (random.random() - 0.5) * tanh((1 - self.good) * 5))
-                self.decay = safe_param(self.decay + (random.random() - 0.5) * tanh((1 - self.good) * 5))
-            else:
-                if random.random() <= self.good ** 2:
-                    self.stable = (self.stable * 20 + 1) / 21
+        if self.learn and self.live_time < MAX_TIME:
+            self.live_time += 1
         self.decay = math.fabs(self.decay)
         if self.decay == 0 or self.decay == 1:
             self.value = weighted_value
-            if self.learn and random.random() > self.good:
-                self.value = 0
         else:
             if self.active:
                 self.value = self.value * pow(self.decay, 0.3)
@@ -165,16 +158,13 @@ class Synapse:
                     self.decayed = True
                     self.value = 0
             else:
-                if math.fabs(weighted_value) >= ACTIVE_MIN:
+                if math.fabs(weighted_value) >= 0.9:
                     if not self.decayed:
                         self.active = True
                         self.value = weighted_value
                 else:
                     self.decayed = False
                     self.value = weighted_value
-                if self.learn and random.random() > self.good:
-                    self.active = False
-                    self.value = 0
         return self.value
 
 
@@ -189,11 +179,9 @@ class Neuron:
         self.__type = types[the_type]
         self.sid = sid
         self.bias = bias
+        self.good_bias = bias
         self.synapses = []
         self.learn = learn
-        self.stable = 0
-        self.using_freq = 0
-        self.good = 1
         self.value = 0
 
     def count(self):
@@ -201,18 +189,6 @@ class Neuron:
         for s in self.synapses:
             s_sum += s.count()
         s_sum -= self.bias
-        if s_sum >= 0:
-            self.using_freq = (self.using_freq * 8 + 1) / 9
-        else:
-            self.using_freq = self.using_freq * 8 / 9
-        self.good = (self.good * 8 + self.using_freq) / 9
-        if self.learn:
-            if random.random() <= (1 - self.good) * (1 - self.stable):
-                self.stable = (self.stable * 8 + 1) / 9
-                self.bias = safe_param(self.bias + (random.random() - 0.5) * tanh((1 - self.good) * 5))
-            else:
-                if random.random() <= self.good ** 2:
-                    self.stable = (self.stable * 20 + 1) / 21
         if self.__type == types['Step']:
             if s_sum >= 0:
                 self.value = 1
@@ -229,9 +205,6 @@ class Neuron:
                 self.value = s_sum
             else:
                 self.value = 0
-        if self.learn and random.random() > self.good:
-            self.value = 0
-        # below may be no use
         for synapse in self.synapses:
-            if synapse.stable >= 0.9 and (abs(synapse.weight) <= 0.1 or synapse.good <= 0.1):
+            if synapse.live_time >= MAX_TIME and abs(synapse.weight) <= 0.01:
                 self.synapses.remove(synapse)
